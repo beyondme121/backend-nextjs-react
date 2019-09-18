@@ -2,7 +2,7 @@ import { cloneElement } from 'react'
 // 组件定制的样式
 const innerStyle = {
   width: '100%',
-  maxWidth: 1200,
+  maxWidth: 1400,
   margin: '0 auto',
   paddingLeft: 20,
   paddingRight: 20,

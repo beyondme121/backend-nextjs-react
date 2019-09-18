@@ -3,7 +3,7 @@ import { Button } from 'antd'
 import { connect } from 'react-redux'
 
 // 获取action
-import { add } from '../store/store'
+// import { add } from '../store/store'
 
 const { publicRuntimeConfig } = getConfig()
 
@@ -16,14 +16,14 @@ const Index = () => {
 }
 
 Index.getInitialProps = async ({ reduxStore}) => {
-  reduxStore.dispatch(add(3))
+  // reduxStore.dispatch(add(3))
   return {}
 }
 
 
 const mapStateToProps = (state) => {
   return {
-    count: state.counter.count
+    // count: state.counter.count
   }
 }
 

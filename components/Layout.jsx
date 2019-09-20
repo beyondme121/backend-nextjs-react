@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react'
 import { Layout, Input, Icon, Avatar } from 'antd'
+import getConfig from 'next/config'
+const { publicRuntimeConfig } = getConfig()
 const { Header, Content, Footer } = Layout
 import Container from './Container'
 // 样式Icon
@@ -47,7 +49,9 @@ export default ({ children }) => {
           </div>
           <div className="header-right">
             <div className="user">
-              <Avatar size={40} icon="user" />
+              <a href={publicRuntimeConfig.OAUTH_URL}>
+                <Avatar size={40} icon="user" />
+              </a>
             </div>
           </div>
         </Container>

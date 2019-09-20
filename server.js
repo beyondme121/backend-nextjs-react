@@ -2,10 +2,16 @@ const Koa = require('koa')
 const Router = require('koa-router')
 const session = require('koa-session')
 const next = require('next')
+const auth = require('./server/auth')
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
 
+// redis相关, 创建完成之后, 在session的store中设置使用redis保存session数据
+const Redis = require('ioredis')
+// 创建 redis client
+const redis = new Redis()
+const RedisSessionStore = require('./server/session-store')
 
 app.prepare().then( () => {
   const server = new Koa()
@@ -14,26 +20,12 @@ app.prepare().then( () => {
   server.keys = ['hello world']
   const SESSION_CONFIG = {
     key: 'jid',
-    // store: {}, // 没有设置store的存储, session存储在客户端的cookies中
+    // 可以设置session的过期时间, 比如10秒
+    // maxAge: 30 * 1000, 
+    store: new RedisSessionStore(redis) // 没有设置store的存储, session存储在客户端的cookies中
   }
   server.use(session(SESSION_CONFIG, server))
-  
-  // 设置cookies
-  // server.use(async (ctx, next) => {
-  //   ctx.cookies.set('id', 'user:xxx', {
-  //     httpOnly: false
-  //   })
-  //   await next()
-  // })
-
-  // 获取cookie的操作, 如果之前没有设置key的cookie, 第一次获取的就是undefined
-  // server.use(async (ctx, next) => {
-  //   const userCookies = ctx.cookies.get('id')
-  //   // 根据cookies拿到用户的信息, 然后把用户信息交给session
-  //   ctx.session = ctx.session || {}
-  //   ctx.session.user = userCookies
-  //   await next()
-  // })
+  auth(server)
 
   router.get('/set/user', async (ctx, next) => {
     if (!ctx.session.user) {
@@ -46,13 +38,24 @@ app.prepare().then( () => {
     }
     ctx.body = {}
   })
+
+  // 测试 其实不需要提供一个api接口, 然后再把session中的数据获取到
+  router.get('/api/user/info', async (ctx, next) => {
+    // 这个数据来自auth鉴权时, 通过github认证, 获取token, 再获取user信息
+    const user = ctx.session.userInfo
+    if (!user) {
+      ctx.status = 401
+      ctx.body = 'need login'
+    } else {
+      ctx.body = user
+      ctx.set('Content-Type', 'application/json')
+    }
+  })
+
   server.use(router.routes())
 
-  // next 集成 koa 进行服务端渲染 await handle(...)
-  server.use(async (ctx, next) => {
-    // console.log("ctx.session.user:", ctx.session.user)
-    // await handle 表示已经写完了响应的结果给客户端了, koa-session做的最后异步是还要设置cookie, ctx.cookies.set(),
-    // 处理完了响应并已经发给了客户端, 再设置影响的cookies就不对了
+  server.use(async ctx => {
+    ctx.req.sessoin = ctx.session
     await handle(ctx.req, ctx.res)
     ctx.respond = false
   })

@@ -3,15 +3,14 @@ import { Button } from 'antd'
 import { connect } from 'react-redux'
 
 // 获取action
-// import { add } from '../store/store'
-
 const { publicRuntimeConfig } = getConfig()
 
 const Index = () => {
   // console.log("publicRuntimeConfig: ", publicRuntimeConfig.customerKey)
   return <div>
-    <Button>hello world</Button>
-    <span>zhichengliu</span>
+    <Button>
+      <a href={publicRuntimeConfig.OAUTH_URL}>去登录</a>
+    </Button>
   </div>
 }
 

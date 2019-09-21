@@ -14,10 +14,10 @@ const Index = () => {
   </div>
 }
 
-Index.getInitialProps = async ({ reduxStore}) => {
-  // reduxStore.dispatch(add(3))
-  return {}
-}
+// Index.getInitialProps = async ({ reduxStore}) => {
+//   // reduxStore.dispatch(add(3))
+//   return {}
+// }
 
 
 const mapStateToProps = (state) => {

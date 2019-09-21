@@ -105,12 +105,9 @@ const MyLayout = ({ children, user, logout, router }) => {
                     </Dropdown>
                   ) : (
                     <Tooltip title="点击进行登录">
-                      <a href={publicRuntimeConfig.OAUTH_URL} onClick={handleGoToOAuth}>
+                      <a href={`/prepare-auth?url=${router.asPath}`} >
                         <Avatar size={40} icon="user" />
                       </a>
-                      {/* <a href="" onClick={handleGoToOAuth}>
-                        <Avatar size={40} icon="user" />
-                      </a> */}
                     </Tooltip>
                   )
               }

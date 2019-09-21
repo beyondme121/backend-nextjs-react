@@ -73,8 +73,7 @@ module.exports = (server) => {
       // 在登录请求之前记录的url
       const { url } = ctx.query
       ctx.session.urlBeforeOAuth = url
-      // 比如加上ctx.body = {...},以为如果不加, /prepare-auth?url=/details 这个请求resp就是404
-      ctx.body = {}
+      ctx.redirect(config.OAUTH_URL)
     } else {
       await next()
     }

@@ -32,7 +32,7 @@ module.exports = (server) => {
       if (result.status === 200 && !(result.data && result.data.error)) {
         // 接下来可以请求github的数据了, 根据token获取用户的数据, 通过GITHUB的API
         // 获取token
-        console.log('==================================================')
+        // console.log('==================================================')
         const { access_token, token_type } = result.data
         // 根据token请求用户信息 或者其他信息
         const userInfoResp = await axios({
@@ -44,15 +44,37 @@ module.exports = (server) => {
         })
         // console.log(userInfoResp.data)
         ctx.session.userInfo = userInfoResp.data
-        
-        
-        // ctx.session.githubOAuth = result.data
-        ctx.redirect('/')
+        // 如果session中保存的urlBeforeOAuth存在, 就直接跳转回原来的地址, 否则就回根目录
+        ctx.redirect((ctx.session && ctx.session.urlBeforeOAuth) || '/')
+        // 还要清空urlBeforeOAuth, 因为登录成功后, 当前次的认证已经完成, 不用再跳会原来的路径
+        ctx.session.urlBeforeOAuth = ''
       } else {
         // 如果不是200 或者 使用了多次code, 都无法验证通过
         const errorMsg = result.data && result.data.error
         ctx.body = `request token failed ${errorMsg}`
       }
+    } else {
+      await next()
+    }
+  })
+
+  server.use(async (ctx, next) => {
+    if (ctx.path === '/logout' && ctx.method === 'POST') {
+      ctx.session = null
+      ctx.body = `logout success`
+    } else {
+      await next()
+    }
+  })
+
+  // 处理登录成功跳转回原来的页面
+  server.use(async (ctx, next) => {
+    if (ctx.path === '/prepare-auth' && ctx.method === 'GET') {
+      // 在登录请求之前记录的url
+      const { url } = ctx.query
+      ctx.session.urlBeforeOAuth = url
+      // 比如加上ctx.body = {...},以为如果不加, /prepare-auth?url=/details 这个请求resp就是404
+      ctx.body = {}
     } else {
       await next()
     }

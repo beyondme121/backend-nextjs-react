@@ -1,9 +1,22 @@
+import { withRouter } from 'next/router'
 import { useState, useCallback } from 'react'
-import { Layout, Input, Icon, Avatar } from 'antd'
-import getConfig from 'next/config'
+
+// 获取配置文件信息
 const { publicRuntimeConfig } = getConfig()
+import getConfig from 'next/config'
+
+// 数据store相关处理, action的引入
+import { connect } from 'react-redux'
+import { logout } from '../store/store'
+
+// 公共组件 antd & 自定义组件
+import { Layout, Input, Icon, Avatar, Tooltip, Dropdown, Menu } from 'antd'
 const { Header, Content, Footer } = Layout
 import Container from './Container'
+
+// 第三方库
+import axios from 'axios'
+
 // 样式Icon
 const githubIconStyle = {
   color: "#fff",
@@ -17,7 +30,8 @@ const footerStyle = {
 // 实验: 定义一个组件, 把这个组件传递给Container组件(用于丰富传入组件的样式)
 const Comp = ({ children, style }) => <div style={style}>{children}</div>
 
-export default ({ children }) => {
+
+const MyLayout = ({ children, user, logout, router }) => {
   const [SearchText, setSearchText] = useState('')
   const handleSearchTextChange = useCallback(
     e => setSearchText(e.target.value),
@@ -27,8 +41,39 @@ export default ({ children }) => {
     () => {
       console.log('hello world', SearchText);
       console.log('根据searchText查询数据返回的结果', SearchText + 'liuzhicheng')
-      alert('alert hello')
     }
+  )
+
+  // 退出登录点击事件, 触发action, 修改state, 服务端清空session
+  const handleLogout = useCallback(
+    () => { 
+      logout()
+    },
+    [logout]    // 依赖logout这个props
+  )
+  
+  // 发送接口请求, prepare-auth, 把url传递给后端server的中间件, 然后登录成功后redirect
+  const handleGoToOAuth =  useCallback((e) => {
+    // 阻止a标签的默认行为
+    e.preventDefault()
+    // 这个请求的唯一目的是请求后端接口prepare-auth, 通过query的形式把url传递保存起来,然后端进行跳转redirect,
+    // 前端依然去做登录认证的事OAUTH_URL
+    axios.get(`/prepare-auth?url=${router.asPath}`).then(resp => {
+      if (resp.status === 200) {
+        location.href = `${publicRuntimeConfig.OAUTH_URL}`
+      } else {
+        console.log('login failed ', resp)
+      }
+    }).catch(err => console.log('login failed err', err))
+  }, [])
+
+  // 用户头像下拉框
+  const userDropDown = (
+    <Menu>
+      <Menu.Item>
+        <a href="javascript:void(0)" onClick={handleLogout}>注 销</a>
+      </Menu.Item>
+    </Menu>
   )
   return (
     <Layout>
@@ -49,9 +94,26 @@ export default ({ children }) => {
           </div>
           <div className="header-right">
             <div className="user">
-              <a href={publicRuntimeConfig.OAUTH_URL}>
-                <Avatar size={40} icon="user" />
-              </a>
+              {
+                // user通过react-redux的connect获取, 通过MyLayout的props进行传递
+                user && user.id ?
+                  (
+                    <Dropdown overlay={userDropDown}>
+                      <a href="/">
+                        <Avatar size={40} src={user.avatar_url} />
+                      </a>
+                    </Dropdown>
+                  ) : (
+                    <Tooltip title="点击进行登录">
+                      <a href={publicRuntimeConfig.OAUTH_URL} onClick={handleGoToOAuth}>
+                        <Avatar size={40} icon="user" />
+                      </a>
+                      {/* <a href="" onClick={handleGoToOAuth}>
+                        <Avatar size={40} icon="user" />
+                      </a> */}
+                    </Tooltip>
+                  )
+              }
             </div>
           </div>
         </Container>
@@ -60,7 +122,7 @@ export default ({ children }) => {
       <Content>
         {/* 传入组件 */}
         <Container renderer={<Comp />}>
-          { children }
+          {children}
         </Container>
 
         {/* <Container renderer={<Comp style={{color: 'red'}}/>}>
@@ -110,3 +172,14 @@ export default ({ children }) => {
     </Layout>
   )
 }
+const mapStateToProps = (state) => {
+  return {
+    user: state.user
+  }
+}
+const mapActionToProps = dispatch => {
+  return {
+    logout: () => dispatch(logout())
+  }
+}
+export default connect(mapStateToProps, mapActionToProps)(withRouter(MyLayout))

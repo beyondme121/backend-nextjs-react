@@ -55,7 +55,8 @@ app.prepare().then( () => {
   server.use(router.routes())
 
   server.use(async ctx => {
-    ctx.req.sessoin = ctx.session
+    ctx.req.session = ctx.session
+    // console.log(ctx.req.session)
     await handle(ctx.req, ctx.res)
     ctx.respond = false
   })

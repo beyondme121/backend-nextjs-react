@@ -1,8 +1,11 @@
+const path = require('path')
 const Koa = require('koa')
 const Router = require('koa-router')
 const session = require('koa-session')
+const body = require('koa-better-body')
 const next = require('next')
 const auth = require('./server/auth')
+const api = require('./server/api')
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
@@ -16,6 +19,12 @@ const RedisSessionStore = require('./server/session-store')
 app.prepare().then( () => {
   const server = new Koa()
   const router = new Router()
+
+  // 处理post请求的请求体, 使用中间件koa-better-body,把post的数据挂载到ctx.request.fields上
+  server.use(body({
+    uploadDir: path.resolve(__dirname, './static/upload')
+  }))
+
   // 处理session
   server.keys = ['hello world']
   const SESSION_CONFIG = {
@@ -26,6 +35,7 @@ app.prepare().then( () => {
   }
   server.use(session(SESSION_CONFIG, server))
   auth(server)
+  api(server)
 
   router.get('/set/user', async (ctx, next) => {
     if (!ctx.session.user) {
@@ -56,7 +66,6 @@ app.prepare().then( () => {
 
   server.use(async ctx => {
     ctx.req.session = ctx.session
-    // console.log(ctx.req.session)
     await handle(ctx.req, ctx.res)
     ctx.respond = false
   })

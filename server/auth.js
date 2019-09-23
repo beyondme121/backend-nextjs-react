@@ -26,6 +26,7 @@ module.exports = (server) => {
         }
       })
       console.log("result: ", result.status, result.data)
+      ctx.session.githubAuth = result.data
       // 由于github 在第一次点击认证之后,再次刷新或请求带有code的url时, 由于code只能使用一次, 
       // 所以github会返回错误 error: 'bad_verification_code', 所以不仅要判断相应码,还要判断
       // result.data 以及result.data.error是否存在

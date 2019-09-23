@@ -5,6 +5,8 @@ import 'antd/dist/antd.css'
 import { Provider } from 'react-redux'
 import withRedux from '../lib/withRedux'
 
+import axios from 'axios'
+
 // 自定义组件
 import Layout from '../components/Layout'
 import PageLoading from '../components/pageLoading'
@@ -33,6 +35,11 @@ class MyApp extends App {
     Router.events.on('routeChangeStart', this.startLoading)
     Router.events.on('routeChangeComplete', this.stopLoading)
     Router.events.on('routeChangeError', this.stopLoading)
+
+    // axios.get('https://api.github.com/search/repositories?q=react').then(res => console.log(res))
+    // axios.get('/github/search/repositories?q=react').then(res => {
+    //   console.log("res -------", res)
+    // })
   }
   componentWillUnmount() {
     Router.events.off('routeChangeStart', this.startLoading)

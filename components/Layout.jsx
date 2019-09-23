@@ -1,4 +1,5 @@
 import { withRouter } from 'next/router'
+import Link from 'next/link'
 import { useState, useCallback } from 'react'
 
 // 获取配置文件信息
@@ -32,28 +33,31 @@ const Comp = ({ children, style }) => <div style={style}>{children}</div>
 
 
 const MyLayout = ({ children, user, logout, router }) => {
-  const [SearchText, setSearchText] = useState('')
+  const urlQuery = router.query && router.query.query
+  const [SearchText, setSearchText] = useState(urlQuery || '')
   const handleSearchTextChange = useCallback(
     e => setSearchText(e.target.value),
     [setSearchText]
   )
+  // 搜索框查询事件, 查询结果, 路由跳转到search页面进行展示, 增加search.js
   const handleOnSearch = useCallback(
     () => {
-      console.log('hello world', SearchText);
-      console.log('根据searchText查询数据返回的结果', SearchText + 'liuzhicheng')
-    }
+      router.push(`/search?query=${SearchText}`)
+      // console.log('hello world', SearchText);
+      // console.log('根据searchText查询数据返回的结果', SearchText + 'liuzhicheng')
+    }, [SearchText]
   )
 
   // 退出登录点击事件, 触发action, 修改state, 服务端清空session
   const handleLogout = useCallback(
-    () => { 
+    () => {
       logout()
     },
     [logout]    // 依赖logout这个props
   )
-  
+
   // 发送接口请求, prepare-auth, 把url传递给后端server的中间件, 然后登录成功后redirect
-  const handleGoToOAuth =  useCallback((e) => {
+  const handleGoToOAuth = useCallback((e) => {
     // 阻止a标签的默认行为
     e.preventDefault()
     // 这个请求的唯一目的是请求后端接口prepare-auth, 通过query的形式把url传递保存起来,然后端进行跳转redirect,
@@ -81,7 +85,9 @@ const MyLayout = ({ children, user, logout, router }) => {
         <Container renderer={<div className="header-inner" />}>
           <div className="header-left">
             <div className="logo">
-              <Icon type="github" style={githubIconStyle} />
+              <Link href="/">
+                <Icon type="github" style={githubIconStyle} />
+              </Link>
             </div>
             <div>
               <Input.Search
@@ -150,19 +156,25 @@ const MyLayout = ({ children, user, logout, router }) => {
           }
           .header-left {
             display: flex;
-            justify-content: "flex-start";
+            justify-content: flex-start;
           }
           
         `}
       </style>
       <style jsx global>
         {`
-          #__next, .ant-layout {
+          #__next {
             height: 100%;
+          }
+          .ant-layout {
+            min-height: 100%;
           }
           .ant-layout-header {
             padding-left: 0;
             padding-right: 0;
+          }
+          .ant-layout-content {
+            background: #fff;
           }
         `}
       </style>

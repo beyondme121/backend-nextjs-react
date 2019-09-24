@@ -75,7 +75,7 @@ const MyLayout = ({ children, user, logout, router }) => {
   const userDropDown = (
     <Menu>
       <Menu.Item>
-        <a href="javascript:void(0)" onClick={handleLogout}>注 销</a>
+        <a href="" onClick={handleLogout}>注 销</a>
       </Menu.Item>
     </Menu>
   )
@@ -86,7 +86,9 @@ const MyLayout = ({ children, user, logout, router }) => {
           <div className="header-left">
             <div className="logo">
               <Link href="/">
-                <Icon type="github" style={githubIconStyle} />
+                <a>
+                  <Icon type="github" style={githubIconStyle} />
+                </a>
               </Link>
             </div>
             <div>

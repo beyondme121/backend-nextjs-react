@@ -2,11 +2,21 @@ import config from '../config'
 import Router, { withRouter } from 'next/router'
 import { Button, Icon, Tabs } from 'antd'
 import { connect } from 'react-redux'
+import { useEffect } from 'react'
+import LRU from 'lru-cache'
 
 const api = require('../lib/api')
 
 // 引入自定义组件
 import Repo from '../components/Repo'
+
+const cache = new LRU({
+  maxAge: 1000 * 60 * 10
+})
+
+// 全局模块中定义缓存的数据变量
+let cachedUserRepos, cachedUserStarredRepos
+const isServer = typeof window === 'undefined'
 
 function Index({ userRepos, userStarredRepos, user, router }) {
   // 不能使用传入的isLogin, 要使用store中的, store中的数据发生变化, 会触发组件的重新渲染
@@ -41,6 +51,20 @@ function Index({ userRepos, userStarredRepos, user, router }) {
     Router.push(`/?key=${activeKey}`)
   }
 
+  useEffect(() => {
+    if (!isServer) {
+      // cachedUserRepos = userRepos
+      // cachedUserStarredRepos = userStarredRepos
+      
+      if (userRepos) {
+        cache.set('userRepos', userRepos)
+      }
+      if (userStarredRepos) {
+        cache.set('userStarredRepos', userStarredRepos)
+      }
+    }
+  }, [userRepos, userStarredRepos])
+
   return (
     <div className="root">
       <div className="user-info">
@@ -57,12 +81,12 @@ function Index({ userRepos, userStarredRepos, user, router }) {
         <Tabs activeKey={tabKey} onChange = { handleTabChange }>
           <Tabs.TabPane tab="你的仓库" key="1">
             {userRepos.map(repo => (
-              <Repo repo={repo} />
+              <Repo repo={repo} key={repo.id}/>
             ))}
           </Tabs.TabPane>
           <Tabs.TabPane tab="你关注的仓库" key="2">
             {userStarredRepos.map(repo => (
-              <Repo repo = {repo} />
+              <Repo repo = {repo} key={repo.id}/>
             ))}
           </Tabs.TabPane>
         </Tabs>
@@ -109,6 +133,9 @@ function Index({ userRepos, userStarredRepos, user, router }) {
   )
 }
 
+
+
+
 Index.getInitialProps = async ({ ctx, reduxStore }) => {
   ///////////////// 前端请求方式, 服务端渲染无法匹配
   // const result = await Axios
@@ -128,6 +155,29 @@ Index.getInitialProps = async ({ ctx, reduxStore }) => {
   const searchResult = await api.request({
     url: '/search/repositories?q=react'
   }, ctx.req, ctx.res)
+
+  // 请求接口前, 看看是否有缓存数据, 如果有就直接使用缓存, 没有才请求数据
+  // if (!isServer) {
+  //   if (cachedUserRepos && cachedUserStarredRepos) {
+  //     console.log('in cachedUserRepos....')
+  //     return {
+  //       userRepos: cachedUserRepos,
+  //       userStarredRepos: cachedUserStarredRepos
+  //     }
+  //   } else {
+  //     console.log('initial cached')
+  //   }
+  // }
+  if (!isServer) {
+    if (cache.get('userRepos') && cache.get('userStarredRepos')) {
+      return {
+        userRepos: cache.get('userRepos'),
+        userStarredRepos: cache.get('userStarredRepos')
+      }
+    }
+  }
+
+
   //////////////////////// 首页请求的接口 ////////////////////////
   // 1. 列出所有自己创建的仓库
   const userRepos = await api.request({
@@ -138,6 +188,13 @@ Index.getInitialProps = async ({ ctx, reduxStore }) => {
   const userStarredRepos = await api.request({
     url: '/user/starred'
   }, ctx.req, ctx.res)
+  console.log('数据加载...')
+  // 向后端请求完数据, 把数据存储在缓存中(保存到一个变量中),然后判断这个变量是否为空, 为空就请求数据, 不为空就直接使用之前请求的数据
+  
+  // if (!isServer) {
+  //   cachedUserRepos = userRepos.data
+  //   cachedUserStarredRepos = userStarredRepos.data
+  // }
 
   return {
     isLogin: true,
@@ -152,5 +209,5 @@ const mapStateToProps = (state) => {
     user: state.user
   }
 }
-export default connect(mapStateToProps)(withRouter(Index))
+export default withRouter(connect(mapStateToProps)(Index))
 

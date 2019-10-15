@@ -4,11 +4,14 @@ const Router = require('koa-router')
 const session = require('koa-session')
 const body = require('koa-better-body')
 const next = require('next')
+const atob = require('atob')
 const auth = require('./server/auth')
 const api = require('./server/api')
 const dev = process.env.NODE_ENV !== 'production'
 const app = next({ dev })
 const handle = app.getRequestHandler()
+// 用于转换base64的函数, 兼容浏览器的atob方法
+global.atob = atob
 
 // redis相关, 创建完成之后, 在session的store中设置使用redis保存session数据
 const Redis = require('ioredis')

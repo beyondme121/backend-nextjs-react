@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import Repo from './Repo'
 import Link from 'next/link'
 import { withRouter } from 'next/router'
+import { get, cache } from '../lib/repo-basic-cache'
 import api from '../lib/api'
 
 
@@ -14,7 +16,7 @@ function makeQuery(queryObject) {
   return `?${query}`
 }
 
-
+const isServer = typeof window === 'undefined'
 /**
  * 这是一个高阶组件HOC: 接收一个组件Comp, return一个组件Detail
  * Comp: 的需要被渲染的组件 (比如不同的不同的内容仓库信息)
@@ -27,6 +29,13 @@ export default function (Comp, type = 'index') {
   // rest不是自己这个高阶组件处理的数据, 就直接传递给真正的目标组件即可
   function WithDetail({ repoBasic, router, ...rest }) {
     const query = makeQuery(router.query)
+
+    useEffect(() => {
+      if (!isServer) {
+        cache(repoBasic)
+      }
+    })
+    
     return (
       <div className="root">
         <div className="repo-basic">
@@ -74,16 +83,34 @@ export default function (Comp, type = 'index') {
   WithDetail.getInitialProps = async (context) => {
     const { ctx } = context
     const { owner, name } = ctx.query
-    // 获取一个仓库的详细信息 github api: GET /repos/:owner/:repo
-    const repoBasic = await api.request({
-      url: `/repos/${owner}/${name}`
-    }, ctx.req, ctx.res)
+    
+    // 拼接仓库的full_name, 用于根据full_name获取缓存
+    const full_name = `${owner}/${name}`
 
     // 调用被包裹的组件的getInitialProps, 初始化具体页面的初始化数据请求
     let pageData = {}
     if (Comp.getInitialProps) {
       pageData = await Comp.getInitialProps(context)
-      console.log(pageData)
+      // console.log(pageData)
+    }
+
+    // 如果full_name的仓库信息是缓存过的, 就使用缓存数据get(full_name)
+    if (get(full_name)) {
+      return {
+        repoBasic: get(full_name),
+        ...pageData
+      }
+    }
+
+    // 否则没有缓存的话, 就直接请求数据
+    // 获取一个仓库的详细信息 github api: GET /repos/:owner/:repo
+    const repoBasic = await api.request({
+      url: `/repos/${owner}/${name}`
+    }, ctx.req, ctx.res)
+
+    // 通过如果之前没有缓存,请求之后的数据也需要进行缓存
+    if (!isServer) {
+      cache(repoBasic)
     }
 
     return {

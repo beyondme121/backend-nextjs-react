@@ -2,7 +2,8 @@ import { withRouter } from 'next/router'
 import Link from 'next/link'
 import Router from 'next/router'
 import { Row, Col, List, Pagination } from 'antd'
-import { memo, isValidElement } from 'react'
+import { memo, isValidElement, useEffect } from 'react'
+import { cacheArray } from '../lib/repo-basic-cache'
 // 所有结果展示, 复用Repo组件
 import Repo from '../components/Repo'
 
@@ -67,35 +68,24 @@ const FilterLink = memo(({ name, query, lang, sort, order, page }) => {
   )
 })
 
+const isServer = typeof window === 'undefined'
+
 const Search = ({ router, repos }) => {
   // 没有在组件内创建state, 而是通过参数的形式, 是因为页面的显示的数据是根据url来定义的
   // 不需要组件自己维护状态
   // const { lang, sort, order, query } = router.query
   const { ...querys } = router.query
   const { lang, sort, order, page } = router.query
-  // 路由的方法跳转,拼接路由url, 在点击a标签之后
-  // const handleLanguageChange = language => {
-  //   Router.push({
-  //     pathname: '/search',
-  //     query: {
-  //       query,
-  //       lang: language,
-  //       sort,
-  //       order
-  //     }
-  //   })
-  // }
-  // const handleSortChange = sort => {
-  //   Router.push({
-  //     pathname: '/search',
-  //     query: {
-  //       query,
-  //       lang,
-  //       sort: sort.value,
-  //       order: sort.order
-  //     }
-  //   })
-  // }
+  
+  // 每次渲染Search都会调用cacheArray对查询出来的repos数组列表进行缓存, 
+  // 因为cacheArray调用的是cache函数, cache函数是根据key(full_name)进行缓存的cache.set(full_name, repo)
+  // 即便full_name重复了也没有关系, 就类似对象的属性一样, 即使full_name重复了, 也会覆盖之前的full_name对象的缓存
+  // 因为查询页面的数据是和用户搜索有关的, 是客户端的缓存,不需要服务端进行缓存
+  useEffect(() => {
+    if (!isServer) {
+      cacheArray(repos.items)
+    }
+  })
 
   return (
     <div className="root">
@@ -208,7 +198,7 @@ Search.getInitialProps = async ({ ctx }) => {
   const result = await api.request({
     url: `/search/repositories${querystring}`
   }, ctx.req, ctx.res)
-  console.log(result)
+
   return {
     repos: result.data
   }

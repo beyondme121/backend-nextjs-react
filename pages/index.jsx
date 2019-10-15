@@ -4,7 +4,7 @@ import { Button, Icon, Tabs } from 'antd'
 import { connect } from 'react-redux'
 import { useEffect } from 'react'
 import LRU from 'lru-cache'
-// import { cacheArray } from '../lib/repo-basic-cache'
+import { cacheArray } from '../lib/repo-basic-cache'
 
 const api = require('../lib/api')
 // 引入自定义组件
@@ -37,6 +37,15 @@ function Index({ userRepos, userStarredRepos, user, router }) {
       }      
     }
   }, [userRepos, userStarredRepos])
+
+  // 首页客户端缓存服务端渲染返回的数据
+  useEffect(() => {
+    if (!isServer) {
+      // 如果未登录状态, userRepos是undefined, 所以cacheArray要进行判断否则就会报错
+      cacheArray(userRepos)
+      cacheArray(userStarredRepos)
+    }
+  })
   
   if (!user || !user.id) {
     return <div className="root">

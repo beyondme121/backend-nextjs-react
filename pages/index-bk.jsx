@@ -57,13 +57,9 @@ function Index({ userRepos, userStarredRepos, user, router }) {
   // 缓存repos
   useEffect(() => {
     if (!isServer) {
+      // 如果未登录状态, userRepos是undefined, 所以cacheArray要进行判断否则就会报错
       cacheArray(userRepos)
       cacheArray(userStarredRepos)
-      // if (userRepos !== 'undefined' && userStarredRepos !== 'undefined') {
-      //   console.log("-----------",userRepos)
-      //   cacheArray(userRepos)
-      //   cacheArray(userStarredRepos)
-      // }
     }
   })
   

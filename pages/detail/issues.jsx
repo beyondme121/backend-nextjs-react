@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Avatar, Button, Select } from "antd";
+import { Avatar, Button, Select, Spin } from "antd";
 import withRepoBasic from "../../components/with-repo-basic";
 import api from "../../lib/api";
 import dynamic from "next/dynamic";
@@ -103,7 +103,23 @@ const IssueItem = ({ issue }) => {
     </div>
   );
 };
-const Issues = ({ initialIssues, labels }) => {
+
+// 拼接query的方法, 用于获取用户查询,状态选择,标签选择 结果的query拼接 返回值再加上 查询issues的url就是整个的查询issues的url
+const makeQuery = (creator, state, labels) => {
+  let creatorStr = creator ? `creator=${creator}` : ''
+  let stateStr = state ? `state=${state}` : ''
+  let labelStr = ''
+  if (labels && labels.length > 0) {
+    labelStr = `labels=${labels.join(',')}`
+  }
+  const arr = []
+  if (creatorStr) arr.push(creatorStr)
+  if (stateStr) arr.push(stateStr)
+  if (labelStr) arr.push(labelStr)
+  return `?${arr.join('&')}`
+}
+
+const Issues = ({ initialIssues, labels, owner, name }) => {
   // issues数据,将initialIssues作为issues初始化的数据
   const [issues, setIssues] = useState(initialIssues) // 当点击搜索时才会调用setIssues
 
@@ -123,9 +139,26 @@ const Issues = ({ initialIssues, labels }) => {
     setLabel(value)
   }, [])
 
-  const handleSearch = () => {
+  // 组件fetching的状态
+  const [fetching, setFetching] = useState(false)
 
-  }
+  // 点击 "搜索" 出发的cb
+  const handleSearch = useCallback(() => {
+    // 设置动画的状态
+    setFetching(true)
+    // 与初始化的issues的api写法类似,只是这个请求是从前端发起的, 不是服务端渲染
+    api.request({
+      url: `/repos/${owner}/${name}/issues${makeQuery(creator, state, label)}`
+    })
+      .then(resp => {
+        setIssues(resp.data)
+        setFetching(false)
+      })
+      .catch(err => {
+        console.error(err)
+      })
+  }, [owner, name, creator, state, label])
+  
   return (
     <div className="root">
       <div className="search">
@@ -154,12 +187,17 @@ const Issues = ({ initialIssues, labels }) => {
             ))
           }
         </Select>
-        <Button type="primary" onClick={handleSearch}>搜索</Button>
+        {/* 当点击搜索还没有返回结果前, Button按钮处于disable */}
+        <Button type="primary" disabled={fetching} onClick={handleSearch}>搜索</Button>
       </div>
       <div className="issues">
-        {issues.map(item => (
-          <IssueItem issue={item} key={item.id} />
-        ))}
+        {
+          fetching ? <div className="loading"><Spin /></div> : <div>
+            {issues.map(item => (
+            <IssueItem issue={item} key={item.id} />
+            ))}
+          </div>
+        }
       </div>
       <style jsx>
         {`
@@ -172,6 +210,12 @@ const Issues = ({ initialIssues, labels }) => {
           .search {
             display: flex;
           }
+          .loading {
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
         `}
       </style>
     </div>
@@ -180,22 +224,24 @@ const Issues = ({ initialIssues, labels }) => {
 
 Issues.getInitialProps = async ({ ctx }) => {
   const { owner, name } = ctx.query;
-
-  const issuesResp = await api.request(
-    {
+  
+  const fetchs = await Promise.all([
+    await api.request({
       url: `/repos/${owner}/${name}/issues`
-    },
-    ctx.req,
-    ctx.res
-  );
+    },ctx.req, ctx.res),
+    await api.request({
+      url: `/repos/${owner}/${name}/labels`
+    }, ctx.req, ctx.res)
+  ])
 
-  const labelsResp = await api.request({
-    url: `/repos/${owner}/${name}/labels`
-  }, ctx.req, ctx.res)
 
   return {
-    initialIssues: issuesResp.data,   // 第一次请求数据没有搜索条件的
-    labels: labelsResp.data
+    // owner,name在Issue中通过handleSearch是拿不到owner和name的, 只能通过第一次服务端渲染,即通过点击跳转通过props传递进来的方式
+    // const { owner, name } = ctx.query
+    owner,
+    name,
+    initialIssues: fetchs[0].data,   // 第一次请求数据没有搜索条件的
+    labels: fetchs[1].data
   };
 };
 

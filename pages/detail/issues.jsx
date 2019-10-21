@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Avatar, Button, Select, Spin } from "antd";
 import withRepoBasic from "../../components/with-repo-basic";
 import api from "../../lib/api";
@@ -10,6 +10,11 @@ const { Option } = Select
 
 const MDRenderer = dynamic(() => import('../../components/MarkdownRenderer'))
 
+// 服务端渲染不进行缓存
+const isServer = typeof window === 'undefined'
+const CACHE = {}
+
+// 点击查看显示详情
 function IssueDetail({ issue }) {
   return (
     <div className="root">
@@ -29,6 +34,27 @@ function IssueDetail({ issue }) {
         }
         `}</style>
     </div>
+  )
+}
+
+// label组件
+function Label({ label }) {
+  return (
+    <>
+      <span className="label" style={{ background: `#${label.color}` }}>
+        {label.name}
+      </span>
+      <style jsx>{`
+        .label {
+          display: inline-block;
+          line-height: 20px;
+          margin-left: 10px;
+          padding: 3px 10px;
+          border-radius: 3px;
+          font-size: 14px;
+        }
+        `}</style>
+    </>
   )
 }
 
@@ -65,6 +91,9 @@ const IssueItem = ({ issue }) => {
         <div className="main-info">
           <h6>
             <span>{issue.title}</span>
+            {
+              issue.labels.map(label => <Label label={label} key={label.id} />)
+            }
           </h6>
           <div className="sub-info">
             <span>Updated at {getLastUpdated(issue.updated_at)}</span>
@@ -134,6 +163,7 @@ const Issues = ({ initialIssues, labels, owner, name }) => {
     setState(value)
   }, [])
 
+  // 选中的label的状态数据以及handle方法
   const [label, setLabel] = useState([])
   const handleLabelChange = useCallback(value => {
     setLabel(value)
@@ -158,7 +188,15 @@ const Issues = ({ initialIssues, labels, owner, name }) => {
         console.error(err)
       })
   }, [owner, name, creator, state, label])
-  
+
+  // 缓存label数据, 从props中获取labels并缓存数据到CACHE中,key就是owner/name
+  // 当owner,name,labels发生变化的时候才重新执行函数
+  useEffect(() => {
+    if (!isServer) {
+      CACHE[`${owner}/${name}`] = labels
+    }
+  }, [owner, name, labels])
+
   return (
     <div className="root">
       <div className="search">
@@ -168,7 +206,7 @@ const Issues = ({ initialIssues, labels, owner, name }) => {
         <Select onChange={handleStateChange} value={state} placeholder="状态" style={{ width: 200, marginLeft: 20 }}>
           <Option value="all">all</Option>
           <Option value="open">open</Option>
-          <Option value="close">close</Option>
+          <Option value="closed">closed</Option>
         </Select>
         {/* labels */}
         <Select
@@ -192,11 +230,13 @@ const Issues = ({ initialIssues, labels, owner, name }) => {
       </div>
       <div className="issues">
         {
-          fetching ? <div className="loading"><Spin /></div> : <div>
-            {issues.map(item => (
-            <IssueItem issue={item} key={item.id} />
-            ))}
-          </div>
+          fetching ?
+            <div className="loading"><Spin /></div> :
+            <div>
+              {issues.map(item => (
+                <IssueItem issue={item} key={item.id} />
+              ))}
+            </div>
         }
       </div>
       <style jsx>
@@ -224,14 +264,16 @@ const Issues = ({ initialIssues, labels, owner, name }) => {
 
 Issues.getInitialProps = async ({ ctx }) => {
   const { owner, name } = ctx.query;
-  
+  const full_name = `${owner}/${name}`
+
   const fetchs = await Promise.all([
     await api.request({
       url: `/repos/${owner}/${name}/issues`
-    },ctx.req, ctx.res),
-    await api.request({
-      url: `/repos/${owner}/${name}/labels`
-    }, ctx.req, ctx.res)
+    }, ctx.req, ctx.res),
+    CACHE[full_name] ? { data: CACHE[full_name] } :
+      await api.request({
+        url: `/repos/${owner}/${name}/labels`
+      }, ctx.req, ctx.res)
   ])
 
 
